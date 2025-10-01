@@ -1,0 +1,52 @@
+services:
+  postgres_db:
+    image: postgres:14-alpine
+    container_name: postgres_db
+    environment:
+      - POSTGRES_USER=aetheruser
+      - POSTGRES_PASSWORD=aetherpass
+      - POSTGRES_DB=aetherchain
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    # ADD THIS HEALTHCHECK
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aetheruser -d aetherchain"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  neo4j_db:
+    # ... (this service is unchanged)
+    image: neo4j:5
+    container_name: neo4j_db
+    environment:
+      - NEO4J_AUTH=neo4j/aetherpass
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+    restart: unless-stopped
+
+  backend_api:
+    build: ./backend
+    container_name: backend_api
+    ports:
+      - "8000:8000"
+    # UPDATE THIS depends_on BLOCK
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+
+  dashboard_app:
+    build: ./dashboard
+    container_name: dashboard_app
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend_api
+
+volumes:
+  postgres_data:
+  neo4j_data:
